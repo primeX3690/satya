@@ -3,17 +3,19 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 import { api, getToken, setToken } from './services/api.js';
 
-import Header from './components/Header.js';
-import Login from './components/Login.js';
-import Signup from './components/Signup.js';
-import VerifyAccount from './components/VerifyAccount.js';
-import Timeline from './components/Timeline.js';
+import Header from './components/Header.jsx';
+import Login from './components/Login.jsx';
+
+import Signup from './components/Signup.jsx';
+import VerifyAccount from './components/VerifyAccount.jsx';
+
+import Timeline from './components/Timeline.jsx';
 import ModerationPanel from './components/ModerationPanel.jsx';
-import AdminLookup from './components/AdminLookup.js';
-import AppealForm from './components/AppealForm.js';
-import MyAppeals from './components/MyAppeals.js';
-import AuditLogViewer from './components/AuditLogViewer.js';
-import TrustPage from './components/TrustPage.js';
+import AdminLookup from './components/AdminLookup.jsx';
+import AppealForm from './components/AppealForm.jsx';
+import MyAppeals from './components/MyAppeals.jsx';
+import AuditLogViewer from './components/AuditLogViewer.jsx';
+import TrustPage from './components/TrustPage.jsx';
 
 // --- Auth context ----------------------------------------------------------
 // Kept here (rather than a separate file) so the whole auth lifecycle -
