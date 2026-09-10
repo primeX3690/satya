@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="icon-shield" viewBox="0 0 24 24">
+    <path d="M12 2 L21 6 V12 C21 17.5 17 21.5 12 23 C7 21.5 3 17.5 3 12 V6 Z" fill="none" stroke="currentColor" stroke-width="1.6"/>
+  </symbol>
+  <symbol id="icon-flag" viewBox="0 0 24 24">
+    <path d="M5 3 V21 M5 4 H17 L14 8 L17 12 H5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="icon-scale" viewBox="0 0 24 24">
+    <path d="M12 3 V21 M6 21 H18 M12 3 L5 9 M12 3 L19 9 M2 9 H8 M16 9 H22 M2 9 L5 15 L8 9 M16 9 L19 15 L22 9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24">
+    <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M19 19 L15.5 15.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="icon-log" viewBox="0 0 24 24">
+    <path d="M4 4 H20 V20 H4 Z M8 8 H16 M8 12 H16 M8 16 H12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+  </symbol>
+</svg>

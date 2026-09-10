@@ -1,0 +1,30 @@
+{
+  "name": "satyanet-mvp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SatyaNet - a truth-verification social platform with moderation, appeals and IPFS-backed content integrity",
+  "keywords": [
+    "wq"
+  ],
+  "license": "ISC",
+  "author": "Prime",
+  "type": "commonjs",
+  "main": "ecosystem.config.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "dev": "concurrently -n SERVER,CLIENT -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
+    "build:client": "npm run build --prefix client",
+    "start:server": "npm start --prefix server",
+    "test:server": "npm test --prefix server",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop ecosystem.config.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
