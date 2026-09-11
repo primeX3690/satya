@@ -57,3 +57,4 @@ function requireRole(...roles) {
 }
 
 module.exports = { requireAuth, requireRole, optionalAuth };
+

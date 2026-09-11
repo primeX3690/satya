@@ -45,3 +45,4 @@ bootstrapAdmin()
       console.log(`SatyaNet server listening on http://localhost:${PORT}`);
     });
   });
+

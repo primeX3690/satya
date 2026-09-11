@@ -56,7 +56,9 @@ function CommentSection({ postId }) {
 
       {comments?.map((c) => (
         <div key={c.id} style={{ marginBottom: 8, fontSize: '0.9rem' }}>
-          <strong>{c.authorName}</strong>{' '}
+        <Link to={`/profile/${post.authorId}`} style={{ color: 'var(--ink)', textDecoration: 'none' }}>
+        <strong>{post.authorName}</strong>
+        </Link>
           <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>{timeAgo(c.createdAt)}</span>
           <p style={{ margin: '2px 0 0' }}>{c.content}</p>
         </div>
@@ -91,6 +93,7 @@ export default function PostCard({ post, showAppealLink = false }) {
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [shareCount, setShareCount] = useState(post.shareCount);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [shareNotice, setShareNotice] = useState('');
 
   const submitReport = async (e) => {
     e.preventDefault();
@@ -122,11 +125,35 @@ export default function PostCard({ post, showAppealLink = false }) {
   };
 
   const handleShare = async () => {
-    try {
-      await navigator.clipboard?.writeText(`${window.location.origin}/post/${post.id}`);
-    } catch {
-      // Clipboard access can fail/be unavailable - sharing still gets recorded below.
+    const shareUrl = `${window.location.origin}/post/${post.id}`;
+    const shareData = {
+      title: 'SatyaNet post',
+      text: post.content ? post.content.slice(0, 120) : `A post by ${post.authorName} on SatyaNet`,
+      url: shareUrl
+    };
+
+    // On phones (and some desktop browsers) this opens the native share
+    // sheet - WhatsApp, Messages, Instagram, etc. - just like a real app.
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        // User backed out of the share sheet without picking anything -
+        // don't count that as a share, and don't show an error for it.
+        if (err.name === 'AbortError') return;
+      }
+    } else {
+      // Desktop browsers without the Web Share API - fall back to copying
+      // the link so the user can paste it wherever they want.
+      try {
+        await navigator.clipboard?.writeText(shareUrl);
+        setShareNotice('Link copied to clipboard');
+        setTimeout(() => setShareNotice(''), 2500);
+      } catch {
+        // Clipboard access can fail/be unavailable - sharing still gets recorded below.
+      }
     }
+
     setShareCount((c) => c + 1);
     try {
       await api.sharePost(post.id);
@@ -175,6 +202,7 @@ export default function PostCard({ post, showAppealLink = false }) {
         <button className="btn btn-secondary" onClick={handleShare}>
           ↗ {shareCount}
         </button>
+        {shareNotice && <span style={{ fontSize: '0.78rem', color: 'var(--ok)' }}>{shareNotice}</span>}
         {user && !reporting && (
           <button className="btn btn-secondary" onClick={() => setReporting(true)}>
             <svg className="icon" width="14" height="14"><use href="/icons.svg#icon-flag" /></svg>

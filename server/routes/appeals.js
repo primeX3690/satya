@@ -117,3 +117,4 @@ router.patch('/:id', requireAuth, requireRole('moderator', 'admin'), (req, res) 
 });
 
 module.exports = router;
+

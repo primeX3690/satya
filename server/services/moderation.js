@@ -51,3 +51,4 @@ function evaluateContent(content) {
 }
 
 module.exports = { evaluateContent };
+

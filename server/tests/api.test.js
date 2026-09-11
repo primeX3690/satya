@@ -5,7 +5,8 @@
 
 process.env.DATABASE_PATH = ':memory:';
 process.env.JWT_SECRET = 'test-secret';
-process.env.OTP_MODE = 'console';
+process.env.EMAIL_OTP_DELIVERY = 'console';
+process.env.SMS_OTP_DELIVERY = 'console';
 process.env.IPFS_MODE = 'mock';
 process.env.BCRYPT_SALT_ROUNDS = '4'; // faster hashing in tests
 process.env.EMAIL_HASH_SECRET = 'test-email-hash-secret';
@@ -189,3 +190,4 @@ test('like, comment, and share flow on a published post', async () => {
   assert.equal(finalPost.body.post.commentCount, 1);
   assert.equal(finalPost.body.post.shareCount, 1);
 });
+

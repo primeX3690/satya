@@ -5,17 +5,18 @@ import { api, getToken, setToken } from './services/api.js';
 
 import Header from './components/Header.jsx';
 import Login from './components/Login.jsx';
-
 import Signup from './components/Signup.jsx';
 import VerifyAccount from './components/VerifyAccount.jsx';
-
 import Timeline from './components/Timeline.jsx';
+import PostDetail from './components/PostDetail.jsx';
 import ModerationPanel from './components/ModerationPanel.jsx';
 import AdminLookup from './components/AdminLookup.jsx';
 import AppealForm from './components/AppealForm.jsx';
 import MyAppeals from './components/MyAppeals.jsx';
 import AuditLogViewer from './components/AuditLogViewer.jsx';
 import TrustPage from './components/TrustPage.jsx';
+import PostCard from './components/PostDetail.jsx';
+import Profile from './components/Profile.jsx';
 
 // --- Auth context ----------------------------------------------------------
 // Kept here (rather than a separate file) so the whole auth lifecycle -
@@ -97,10 +98,12 @@ function AppShell() {
       <main>
         <Routes>
           <Route path="/" element={<Timeline />} />
+          <Route path="/post/:id" element={<PostDetail />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify" element={<VerifyAccount />} />
           <Route path="/trust" element={<TrustPage />} />
+          <Route path="/profile/:id" element={<Profile />} />
           <Route
             path="/appeal/:postId"
             element={
@@ -155,3 +158,4 @@ export default function App() {
     </AuthProvider>
   );
 }
+

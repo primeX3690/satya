@@ -125,4 +125,29 @@ CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_shares_post ON shares(post_id);
 `);
 
+// --- Lightweight migrations -------------------------------------------------
+// CREATE TABLE IF NOT EXISTS only helps on a brand-new database file. If an
+// older copy of satyanet.sqlite already exists (from before media/likes/
+// comments were added), its `posts` table won't have these columns yet.
+// This adds any missing ones automatically so existing dev databases don't
+// have to be deleted every time the schema grows.
+function ensureColumn(table, column, definition) {
+  const existing = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  if (!existing.includes(column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+ensureColumn('posts', 'media_type', "TEXT");
+ensureColumn('posts', 'media_url', 'TEXT');
+ensureColumn('posts', 'media_cid', 'TEXT');
+ensureColumn('posts', 'media_hash', 'TEXT');
+ensureColumn('posts', 'media_mime', 'TEXT');
+ensureColumn('posts', 'like_count', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('posts', 'comment_count', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('posts', 'share_count', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('users', 'email_hash', 'TEXT');
+ensureColumn('users', 'email_encrypted', 'TEXT');
+
 module.exports = db;
+

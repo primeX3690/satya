@@ -54,3 +54,4 @@ async function fetchContent(cid) {
 }
 
 module.exports = { pinContent, fetchContent };
+

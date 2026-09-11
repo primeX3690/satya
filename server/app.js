@@ -8,6 +8,7 @@ const { apiLimiter } = require('./middleware/rateLimit');
 
 const authRoutes = require('./routes/auth');
 const postsRoutes = require('./routes/posts');
+const usersRoutes = require('./routes/users');
 const reportsRoutes = require('./routes/reports');
 const appealsRoutes = require('./routes/appeals');
 const adminRoutes = require('./routes/admin');
@@ -43,6 +44,7 @@ app.use('/api/posts', postsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/appeals', appealsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/users', usersRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -61,3 +63,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+

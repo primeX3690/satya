@@ -66,6 +66,8 @@ export const api = {
   getComments: (id) => request(`/posts/${id}/comments`),
   addComment: (id, payload) => request(`/posts/${id}/comments`, { method: 'POST', body: payload, auth: true }),
   sharePost: (id) => request(`/posts/${id}/share`, { method: 'POST', auth: !!getToken() }),
+    // Users / profiles
+  getProfile: (id) => request(`/users/${id}`, { auth: true }),
 
   // Reports
   createReport: (payload) => request('/reports', { method: 'POST', body: payload, auth: true }),

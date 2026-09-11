@@ -42,6 +42,7 @@ export default function Header() {
       </Link>
       <nav style={styles.nav}>
         <Link to="/trust" style={styles.link}>How it works</Link>
+        {user && <Link to={`/profile/${user.id}`} style={styles.link}>My profile</Link>}
         {user && <Link to="/my-appeals" style={styles.link}>My appeals</Link>}
         {user && ['moderator', 'admin'].includes(user.role) && (
           <Link to="/moderation" style={styles.link}>Moderation</Link>
@@ -67,3 +68,4 @@ export default function Header() {
     </header>
   );
 }
+
