@@ -12,6 +12,8 @@ const usersRoutes = require('./routes/users');
 const reportsRoutes = require('./routes/reports');
 const appealsRoutes = require('./routes/appeals');
 const adminRoutes = require('./routes/admin');
+const notificationsRoutes = require('./routes/notifications');
+const messagesRoutes = require('./routes/messages');
 
 const app = express();
 
@@ -41,10 +43,12 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postsRoutes);
+app.use('/api/users', usersRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/appeals', appealsRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/users', usersRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/messages', messagesRoutes);
 
 // 404 handler
 app.use((req, res) => {

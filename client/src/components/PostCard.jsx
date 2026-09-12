@@ -24,7 +24,10 @@ function CommentSection({ postId }) {
     setLoading(true);
     try {
       const { comments: rows } = await api.getComments(postId);
-      setComments(rows);
+      // Defensive: only keep well-formed comment objects. A single
+      // malformed entry from the API should never be able to crash the
+      // whole list render.
+      setComments(Array.isArray(rows) ? rows.filter((c) => c && c.id) : []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -41,9 +44,15 @@ function CommentSection({ postId }) {
     e.preventDefault();
     if (!text.trim()) return;
     try {
-      const { comment } = await api.addComment(postId, { content: text.trim() });
-      setComments((prev) => [...(prev || []), comment]);
-      setText('');
+      const result = await api.addComment(postId, { content: text.trim() });
+      // Defensive: only add the new comment to the list if the server
+      // actually sent one back in the expected shape.
+      if (result && result.comment && result.comment.id) {
+        setComments((prev) => [...(prev || []), result.comment]);
+        setText('');
+      } else {
+        setError('Comment may not have saved - please refresh and check.');
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -54,13 +63,13 @@ function CommentSection({ postId }) {
       {loading && <p style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>Loading comments…</p>}
       {error && <p className="error-text">{error}</p>}
 
-      {comments?.map((c) => (
+      {(comments || []).map((c) => (
         <div key={c.id} style={{ marginBottom: 8, fontSize: '0.9rem' }}>
-        <Link to={`/profile/${post.authorId}`} style={{ color: 'var(--ink)', textDecoration: 'none' }}>
-        <strong>{post.authorName}</strong>
-        </Link>
-          <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>{timeAgo(c.createdAt)}</span>
-          <p style={{ margin: '2px 0 0' }}>{c.content}</p>
+          <strong>{c.authorName || 'Someone'}</strong>{' '}
+          <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>
+            {c.createdAt ? timeAgo(c.createdAt) : ''}
+          </span>
+          <p style={{ margin: '2px 0 0' }}>{c.content || ''}</p>
         </div>
       ))}
       {comments && comments.length === 0 && (
@@ -82,7 +91,7 @@ function CommentSection({ postId }) {
   );
 }
 
-export default function PostCard({ post, showAppealLink = false }) {
+export default function PostCard({ post, showAppealLink = false, onDeleted }) {
   const { user } = useAuth();
   const [reporting, setReporting] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -94,6 +103,10 @@ export default function PostCard({ post, showAppealLink = false }) {
   const [shareCount, setShareCount] = useState(post.shareCount);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareNotice, setShareNotice] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const isOwner = !!(user && post.authorId === user.id);
 
   const submitReport = async (e) => {
     e.preventDefault();
@@ -112,7 +125,6 @@ export default function PostCard({ post, showAppealLink = false }) {
 
   const handleLike = async () => {
     if (!user) return;
-    // Optimistic update - feels instant, corrected if the request fails.
     setLiked((v) => !v);
     setLikeCount((c) => (liked ? c - 1 : c + 1));
     try {
@@ -132,22 +144,16 @@ export default function PostCard({ post, showAppealLink = false }) {
       url: shareUrl
     };
 
-    // On phones (and some desktop browsers) this opens the native share
-    // sheet - WhatsApp, Messages, Instagram, etc. - just like a real app.
     if (navigator.share) {
       try {
         await navigator.share(shareData);
       } catch (err) {
-        // User backed out of the share sheet without picking anything -
-        // don't count that as a share, and don't show an error for it.
         if (err.name === 'AbortError') return;
       }
     } else {
-      // Desktop browsers without the Web Share API - fall back to copying
-      // the link so the user can paste it wherever they want.
       try {
         await navigator.clipboard?.writeText(shareUrl);
-        setShareNotice('Link copied to clipboard');
+        setShareNotice('Link copied');
         setTimeout(() => setShareNotice(''), 2500);
       } catch {
         // Clipboard access can fail/be unavailable - sharing still gets recorded below.
@@ -162,10 +168,27 @@ export default function PostCard({ post, showAppealLink = false }) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm('Delete this post? This cannot be undone.')) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await api.deletePost(post.id);
+      onDeleted?.(post.id);
+    } catch (err) {
+      setDeleteError(err.message);
+      setDeleting(false);
+    }
+  };
+
+  if (deleting && !deleteError) return null;
+
   return (
     <article className="card" style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-        <strong>{post.authorName}</strong>
+        <Link to={`/profile/${post.authorId}`} style={{ color: 'var(--ink)', textDecoration: 'none' }}>
+          <strong>{post.authorName}</strong>
+        </Link>
         <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>{timeAgo(post.createdAt)}</span>
       </div>
 
@@ -183,7 +206,9 @@ export default function PostCard({ post, showAppealLink = false }) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.78rem', color: 'var(--muted)' }}>
         <span className={`badge badge-${post.status}`}>{post.status}</span>
-        {post.ipfsCid && <span title={post.ipfsCid}>anchored · {post.ipfsCid.slice(0, 14)}…</span>}
+        {post.ipfsCid && (
+          <span title={post.ipfsCid}>anchored · {post.ipfsCid.slice(0, 14)}…</span>
+        )}
       </div>
 
       <div style={{ marginTop: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -191,10 +216,10 @@ export default function PostCard({ post, showAppealLink = false }) {
           className="btn btn-secondary"
           onClick={handleLike}
           disabled={!user}
-          style={liked ? { borderColor: 'var(--clay)', color: 'var(--clay)' } : undefined}
+          style={liked ? { borderColor: '#DC2626', color: '#DC2626' } : undefined}
           title={user ? undefined : 'Log in to like'}
         >
-          ♥ {likeCount}
+          {liked ? '❤️' : '♡'} {likeCount}
         </button>
         <button className="btn btn-secondary" onClick={() => setCommentsOpen((v) => !v)}>
           💬 {post.commentCount}
@@ -203,16 +228,21 @@ export default function PostCard({ post, showAppealLink = false }) {
           ↗ {shareCount}
         </button>
         {shareNotice && <span style={{ fontSize: '0.78rem', color: 'var(--ok)' }}>{shareNotice}</span>}
-        {user && !reporting && (
+        {user && !isOwner && !reporting && (
           <button className="btn btn-secondary" onClick={() => setReporting(true)}>
             <svg className="icon" width="14" height="14"><use href="/icons.svg#icon-flag" /></svg>
             Report
           </button>
         )}
+        {isOwner && (
+          <button className="btn btn-danger" onClick={handleDelete}>Delete</button>
+        )}
         {showAppealLink && post.status !== 'published' && (
           <Link to={`/appeal/${post.id}`} className="btn btn-secondary">File appeal</Link>
         )}
       </div>
+
+      {deleteError && <p className="error-text">{deleteError}</p>}
 
       {commentsOpen && <CommentSection postId={post.id} />}
 
@@ -240,3 +270,4 @@ export default function PostCard({ post, showAppealLink = false }) {
     </article>
   );
 }
+

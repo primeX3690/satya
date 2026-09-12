@@ -9,6 +9,8 @@ const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { hashContent, hashBuffer } = require('../services/cryptoUtils');
 const { pinContent } = require('../services/ipfsService');
 const { evaluateContent } = require('../services/moderation');
+const { checkMedia } = require('../services/mediaModeration');
+const { createNotification } = require('../services/notifications');
 
 const router = express.Router();
 
@@ -118,6 +120,31 @@ router.post('/', requireAuth, upload.single('media'), async (req, res) => {
     return res.status(400).json({ error: 'content must be 2000 characters or fewer' });
   }
 
+  // --- Content-safety check on media (BEFORE anything else happens) --------
+  // Reject explicit/offensive media outright rather than publishing it and
+  // flagging it after the fact. If the moderation service itself fails
+  // (misconfigured key, API down), fail SAFE: reject the upload rather than
+  // publish unchecked media.
+  let mediaBuffer = null;
+  if (file) {
+    mediaBuffer = fs.readFileSync(file.path);
+    try {
+      const safetyCheck = await checkMedia(mediaBuffer, file.mimetype);
+      if (!safetyCheck.safe) {
+        fs.unlink(file.path, () => {});
+        return res.status(400).json({
+          error: `Media rejected: ${safetyCheck.reasons.join(', ') || 'explicit content detected'}`
+        });
+      }
+    } catch (err) {
+      console.error('[media-moderation] check failed:', err.message);
+      fs.unlink(file.path, () => {});
+      return res.status(503).json({
+        error: 'Media could not be safety-checked right now - please try again shortly.'
+      });
+    }
+  }
+
   let score = 0;
   let reasons = [];
   let status = 'published';
@@ -147,10 +174,9 @@ router.post('/', requireAuth, upload.single('media'), async (req, res) => {
     mediaType = ALLOWED_MIME[file.mimetype];
     mediaMime = file.mimetype;
     mediaUrl = `/uploads/${file.filename}`;
-    const buffer = fs.readFileSync(file.path);
-    mediaHash = hashBuffer(buffer);
+    mediaHash = hashBuffer(mediaBuffer);
     try {
-      mediaCid = await pinContent(buffer);
+      mediaCid = await pinContent(mediaBuffer);
     } catch (err) {
       console.error('IPFS pin (media) failed:', err.message);
     }
@@ -229,7 +255,7 @@ router.get('/:id', optionalAuth, (req, res) => {
  * Toggles a like from the current user on this post.
  */
 router.post('/:id/like', requireAuth, (req, res) => {
-  const post = db.prepare('SELECT id FROM posts WHERE id = ?').get(req.params.id);
+  const post = db.prepare('SELECT id, author_id FROM posts WHERE id = ?').get(req.params.id);
   if (!post) return res.status(404).json({ error: 'Post not found' });
 
   const existing = db
@@ -244,6 +270,7 @@ router.post('/:id/like', requireAuth, (req, res) => {
 
   db.prepare('INSERT INTO likes (post_id, user_id) VALUES (?, ?)').run(req.params.id, req.user.id);
   db.prepare('UPDATE posts SET like_count = like_count + 1 WHERE id = ?').run(req.params.id);
+  createNotification({ userId: post.author_id, type: 'like', actorId: req.user.id, postId: post.id });
   return res.json({ liked: true });
 });
 
@@ -271,7 +298,7 @@ router.post('/:id/comments', requireAuth, (req, res) => {
   if (!content || !content.trim()) {
     return res.status(400).json({ error: 'content is required' });
   }
-  const post = db.prepare('SELECT id FROM posts WHERE id = ?').get(req.params.id);
+  const post = db.prepare('SELECT id, author_id FROM posts WHERE id = ?').get(req.params.id);
   if (!post) return res.status(404).json({ error: 'Post not found' });
 
   const id = uuidv4();
@@ -279,6 +306,7 @@ router.post('/:id/comments', requireAuth, (req, res) => {
     `INSERT INTO comments (id, post_id, author_id, content) VALUES (?, ?, ?, ?)`
   ).run(id, req.params.id, req.user.id, content.trim());
   db.prepare('UPDATE posts SET comment_count = comment_count + 1 WHERE id = ?').run(req.params.id);
+  createNotification({ userId: post.author_id, type: 'comment', actorId: req.user.id, postId: post.id });
 
   const row = db
     .prepare(
@@ -306,6 +334,27 @@ router.post('/:id/share', optionalAuth, (req, res) => {
   );
   db.prepare('UPDATE posts SET share_count = share_count + 1 WHERE id = ?').run(req.params.id);
   return res.json({ message: 'Share recorded' });
+});
+
+/**
+ * DELETE /api/posts/:id
+ * Only the original author can delete their own post - no admin/moderator
+ * override exists for this action, by design: this platform's core promise
+ * is that a post can only be taken down by the person who created it.
+ * Related likes/comments/shares/reports/appeals cascade-delete automatically
+ * (foreign keys with ON DELETE CASCADE).
+ */
+router.delete('/:id', requireAuth, (req, res) => {
+  const post = db.prepare('SELECT id, author_id FROM posts WHERE id = ?').get(req.params.id);
+  if (!post) return res.status(404).json({ error: 'Post not found' });
+  if (post.author_id !== req.user.id) {
+    return res.status(403).json({ error: 'You can only delete your own posts' });
+  }
+
+  db.prepare('DELETE FROM posts WHERE id = ?').run(req.params.id);
+  logAudit(req.user.id, 'author_delete', 'post', req.params.id, null);
+
+  return res.json({ message: 'Post deleted' });
 });
 
 module.exports = router;

@@ -86,6 +86,32 @@ CREATE TABLE IF NOT EXISTS shares (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN ('like', 'comment', 'appeal_resolved')),
+  actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  post_id TEXT REFERENCES posts(id) ON DELETE CASCADE,
+  is_read INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS conversations (
+  id TEXT PRIMARY KEY,
+  user_a_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_b_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_a_id, user_b_id)
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS reports (
   id TEXT PRIMARY KEY,
   post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
@@ -123,6 +149,9 @@ CREATE INDEX IF NOT EXISTS idx_appeals_status ON appeals(status);
 CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_log(target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_shares_post ON shares(post_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_users ON conversations(user_a_id, user_b_id);
 `);
 
 // --- Lightweight migrations -------------------------------------------------

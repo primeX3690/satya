@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
-import { api, getToken, setToken } from './services/api.js';
+import { api, getToken, setToken } from './services/api';
+import { connectSocket, disconnectSocket } from './services/socket';
 
 import Header from './components/Header.jsx';
 import Login from './components/Login.jsx';
@@ -9,14 +10,16 @@ import Signup from './components/Signup.jsx';
 import VerifyAccount from './components/VerifyAccount.jsx';
 import Timeline from './components/Timeline.jsx';
 import PostDetail from './components/PostDetail.jsx';
+import Profile from './components/Profile.jsx';
 import ModerationPanel from './components/ModerationPanel.jsx';
 import AdminLookup from './components/AdminLookup.jsx';
 import AppealForm from './components/AppealForm.jsx';
 import MyAppeals from './components/MyAppeals.jsx';
 import AuditLogViewer from './components/AuditLogViewer.jsx';
 import TrustPage from './components/TrustPage.jsx';
-import PostCard from './components/PostDetail.jsx';
-import Profile from './components/Profile.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import Messages from './components/Messages.jsx';
+import ChatThread from './components/ChatThread.jsx';
 
 // --- Auth context ----------------------------------------------------------
 // Kept here (rather than a separate file) so the whole auth lifecycle -
@@ -43,6 +46,7 @@ function AuthProvider({ children }) {
     try {
       const { user: me } = await api.me();
       setUser(me);
+      connectSocket();
     } catch {
       setToken(null);
       setUser(null);
@@ -53,16 +57,19 @@ function AuthProvider({ children }) {
 
   useEffect(() => {
     loadMe();
+    return () => disconnectSocket();
   }, [loadMe]);
 
   const login = (token, userData) => {
     setToken(token);
     setUser(userData);
+    connectSocket();
   };
 
   const logout = () => {
     setToken(null);
     setUser(null);
+    disconnectSocket();
   };
 
   return (
@@ -99,11 +106,11 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Timeline />} />
           <Route path="/post/:id" element={<PostDetail />} />
+          <Route path="/profile/:id" element={<Profile />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify" element={<VerifyAccount />} />
           <Route path="/trust" element={<TrustPage />} />
-          <Route path="/profile/:id" element={<Profile />} />
           <Route
             path="/appeal/:postId"
             element={
@@ -117,6 +124,22 @@ function AppShell() {
             element={
               <RequireAuth>
                 <MyAppeals />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/messages"
+            element={
+              <RequireAuth>
+                <Messages />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/messages/:userId"
+            element={
+              <RequireAuth>
+                <ChatThread />
               </RequireAuth>
             }
           />
@@ -153,9 +176,11 @@ function AppShell() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppShell />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppShell />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../App.jsx';
@@ -14,7 +15,7 @@ export default function Timeline() {
     setLoading(true);
     try {
       const { posts: rows } = await api.getTimeline();
-      setPosts(rows);
+      setPosts(Array.isArray(rows) ? rows : []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -30,6 +31,10 @@ export default function Timeline() {
     if (post.status === 'published') {
       setPosts((prev) => [post, ...prev]);
     }
+  };
+
+  const handleDeleted = (id) => {
+    setPosts((prev) => prev.filter((p) => p.id !== id));
   };
 
   return (
@@ -52,9 +57,8 @@ export default function Timeline() {
       {!loading && posts.length === 0 && <p>No posts yet. Be the first to share something.</p>}
 
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
+        <PostCard key={post.id} post={post} onDeleted={handleDeleted} />
       ))}
     </div>
   );
 }
-

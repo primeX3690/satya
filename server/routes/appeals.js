@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const db = require('../database');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { createNotification } = require('../services/notifications');
 
 const router = express.Router();
 
@@ -112,6 +113,7 @@ router.patch('/:id', requireAuth, requireRole('moderator', 'admin'), (req, res) 
   }
 
   logAudit(req.user.id, `appeal_${status}`, 'appeal', appeal.id, { resolutionNote });
+  createNotification({ userId: appeal.user_id, type: 'appeal_resolved', postId: appeal.post_id });
 
   return res.json({ message: 'Appeal resolved' });
 });

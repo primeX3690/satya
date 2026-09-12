@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App.jsx';
+import NotificationBell from './NotificationBell.jsx';
 
 const styles = {
   bar: {
@@ -43,6 +44,7 @@ export default function Header() {
       <nav style={styles.nav}>
         <Link to="/trust" style={styles.link}>How it works</Link>
         {user && <Link to={`/profile/${user.id}`} style={styles.link}>My profile</Link>}
+        {user && <Link to="/messages" style={styles.link}>Messages</Link>}
         {user && <Link to="/my-appeals" style={styles.link}>My appeals</Link>}
         {user && ['moderator', 'admin'].includes(user.role) && (
           <Link to="/moderation" style={styles.link}>Moderation</Link>
@@ -53,6 +55,7 @@ export default function Header() {
             <Link to="/audit-log" style={styles.link}>Audit log</Link>
           </>
         )}
+        {user && <NotificationBell />}
         {user ? (
           <>
             <span className="badge">{user.displayName}</span>

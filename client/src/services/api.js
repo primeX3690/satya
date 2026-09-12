@@ -62,11 +62,13 @@ export const api = {
   getTimeline: (params = '') => request(`/posts${params}`, { auth: !!getToken() }),
   getMyPosts: () => request('/posts/mine', { auth: true }),
   getPost: (id) => request(`/posts/${id}`, { auth: !!getToken() }),
+  deletePost: (id) => request(`/posts/${id}`, { method: 'DELETE', auth: true }),
   toggleLike: (id) => request(`/posts/${id}/like`, { method: 'POST', auth: true }),
   getComments: (id) => request(`/posts/${id}/comments`),
   addComment: (id, payload) => request(`/posts/${id}/comments`, { method: 'POST', body: payload, auth: true }),
   sharePost: (id) => request(`/posts/${id}/share`, { method: 'POST', auth: !!getToken() }),
-    // Users / profiles
+
+  // Users / profiles
   getProfile: (id) => request(`/users/${id}`, { auth: true }),
 
   // Reports
@@ -84,5 +86,18 @@ export const api = {
   searchUsers: (query) => request(`/admin/users?query=${encodeURIComponent(query)}`, { auth: true }),
   setUserRole: (id, role) => request(`/admin/users/${id}/role`, { method: 'PATCH', body: { role }, auth: true }),
   setPostStatus: (id, status) => request(`/admin/posts/${id}/status`, { method: 'PATCH', body: { status }, auth: true }),
-  getAuditLog: (params = '') => request(`/admin/audit-log${params}`, { auth: true })
+  getAuditLog: (params = '') => request(`/admin/audit-log${params}`, { auth: true }),
+
+  // Notifications
+  getNotifications: () => request('/notifications', { auth: true }),
+  getUnreadNotificationCount: () => request('/notifications/unread-count', { auth: true }),
+  markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH', auth: true }),
+  markAllNotificationsRead: () => request('/notifications/read-all', { method: 'PATCH', auth: true }),
+
+  // Messages
+  getConversations: () => request('/messages/conversations', { auth: true }),
+  getConversationWith: (userId) => request(`/messages/with/${userId}`, { auth: true }),
+  sendMessage: (conversationId, payload) =>
+    request(`/messages/conversations/${conversationId}/messages`, { method: 'POST', body: payload, auth: true })
 };
+

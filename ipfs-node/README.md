@@ -3,9 +3,36 @@
 By default SatyaNet runs with `IPFS_MODE=mock` in `server/.env` — content is
 still hashed (SHA-256) for integrity, but nothing is actually pinned to IPFS.
 This is intentional so the whole app works out of the box with zero external
-infrastructure. Switch to a real node when you're ready.
+infrastructure. Switch to a real option (Pinata is the easiest) when you're ready.
 
-## Option A — Kubo (the reference IPFS implementation)
+## Option A — Pinata (recommended - no server/node to run)
+
+Pinata is a hosted IPFS pinning service. This is the fastest path to real
+decentralized storage since there's no daemon to install or keep running -
+your laptop doesn't need to stay online for pinned content to remain
+available.
+
+1. Sign up for free: https://www.pinata.cloud/ (free tier includes a
+   meaningful storage/request quota, no card required to start)
+2. In the Pinata dashboard, go to **API Keys** and create a new key. Copy
+   the **JWT** it gives you (a long token starting with `eyJ...`).
+3. In `server/.env`:
+   ```
+   IPFS_MODE=pinata
+   PINATA_JWT=your_jwt_here
+   ```
+4. Restart the server. New posts and media uploads are now pinned for
+   real. `post.ipfsCid` / `post.media.cid` will be genuine IPFS content
+   identifiers, resolvable at `https://gateway.pinata.cloud/ipfs/<cid>` or
+   any public IPFS gateway (e.g. `https://ipfs.io/ipfs/<cid>`).
+5. Verify it worked: paste a returned CID into
+   `https://gateway.pinata.cloud/ipfs/<cid>` in your browser - you should
+   see the exact post text or media file.
+
+No new npm dependency is needed for this mode - it uses Node's built-in
+`fetch`/`FormData`/`Blob` (requires Node 18+, already the project's minimum).
+
+## Option B — Kubo (run your own IPFS node)
 
 1. Install Kubo: https://docs.ipfs.tech/install/command-line/
 2. Initialize and start the daemon:
@@ -27,12 +54,9 @@ infrastructure. Switch to a real node when you're ready.
    `post.ipfsCid` will be a genuine content identifier you can resolve on any
    public gateway, e.g. `https://ipfs.io/ipfs/<cid>`.
 
-## Option B — Pinning service (Pinata, Infura, web3.storage)
-
-Point `IPFS_API_URL` at your provider's HTTP API endpoint and supply any
-required auth headers by extending `server/services/ipfsService.js` (the
-`create()` call from `ipfs-http-client` accepts a `headers` option for API
-keys).
+   Note: unlike Pinata, your own node needs to keep running (and stay
+   connected to the network) for the content to remain reliably available
+   to others - this is the trade-off for not depending on a hosted provider.
 
 ## Verifying integrity
 

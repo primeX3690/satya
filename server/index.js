@@ -1,13 +1,15 @@
 require('dotenv').config();
 
+const http = require('http');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 
 const app = require('./app');
 const db = require('./database');
 const { hashEmail, encryptEmail } = require('./services/cryptoUtils');
+const { initSocket } = require('./services/socket');
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 5000;
 
 /**
  * On first run, creates a bootstrap admin account so there's always a way
@@ -40,7 +42,12 @@ async function bootstrapAdmin() {
 bootstrapAdmin()
   .catch((err) => console.error('Admin bootstrap failed:', err))
   .finally(() => {
-    app.listen(PORT, () => {
+    // Socket.IO needs the raw HTTP server (not just the Express app) so it
+    // can upgrade connections to WebSockets on the same port.
+    const server = http.createServer(app);
+    initSocket(server);
+
+    server.listen(PORT, () => {
       // eslint-disable-next-line no-console
       console.log(`SatyaNet server listening on http://localhost:${PORT}`);
     });
