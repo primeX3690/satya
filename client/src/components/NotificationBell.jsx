@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { getSocket } from '../services/socket';
 
 export default function NotificationBell() {
+  const containerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -34,6 +35,18 @@ export default function NotificationBell() {
     };
   }, [refreshCount]);
 
+  // Close the dropdown when clicking anywhere outside of it - not just when
+  // clicking the bell again.
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const toggleOpen = async () => {
     const next = !open;
     setOpen(next);
@@ -59,7 +72,7 @@ export default function NotificationBell() {
   };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div ref={containerRef} style={{ position: 'relative' }}>
       <button className="btn btn-secondary" onClick={toggleOpen}>
         🔔{unreadCount > 0 ? ` ${unreadCount}` : ''}
       </button>
@@ -117,3 +130,4 @@ export default function NotificationBell() {
     </div>
   );
 }
+

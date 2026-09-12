@@ -98,6 +98,14 @@ export const api = {
   getConversations: () => request('/messages/conversations', { auth: true }),
   getConversationWith: (userId) => request(`/messages/with/${userId}`, { auth: true }),
   sendMessage: (conversationId, payload) =>
-    request(`/messages/conversations/${conversationId}/messages`, { method: 'POST', body: payload, auth: true })
+    request(`/messages/conversations/${conversationId}/messages`, { method: 'POST', body: payload, auth: true }),
+
+  // Connections (request-to-message gate)
+  getConnectionStatus: (userId) => request(`/connections/status/${userId}`, { auth: true }),
+  sendConnectionRequest: (toUserId) =>
+    request('/connections/request', { method: 'POST', body: { toUserId }, auth: true }),
+  getConnectionRequests: () => request('/connections/requests', { auth: true }),
+  respondToConnectionRequest: (id, status) =>
+    request(`/connections/requests/${id}`, { method: 'PATCH', body: { status }, auth: true })
 };
 

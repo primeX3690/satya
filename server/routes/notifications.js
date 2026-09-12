@@ -10,6 +10,8 @@ function buildMessage(type, actorName) {
   if (type === 'like') return `${name} liked your post`;
   if (type === 'comment') return `${name} commented on your post`;
   if (type === 'appeal_resolved') return 'Your appeal has been resolved';
+  if (type === 'connection_request') return `${name} wants to connect with you`;
+  if (type === 'connection_accepted') return `${name} accepted your connection request`;
   return 'New notification';
 }
 
@@ -74,3 +76,4 @@ router.patch('/read-all', requireAuth, (req, res) => {
 });
 
 module.exports = router;
+

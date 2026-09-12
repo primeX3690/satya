@@ -26,6 +26,23 @@ function getOrCreateConversation(userIdA, userIdB) {
 }
 
 /**
+ * Two users can only message each other once they have an accepted
+ * connection request between them - this is the "request, then accept"
+ * gate, so people can't be messaged by strangers unsolicited.
+ */
+function isConnected(userA, userB) {
+  const row = db
+    .prepare(
+      `SELECT 1 FROM connection_requests
+       WHERE status = 'accepted' AND (
+         (from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?)
+       )`
+    )
+    .get(userA, userB, userB, userA);
+  return !!row;
+}
+
+/**
  * GET /api/messages/conversations
  * All of the current user's conversations, with the other participant's
  * name and a preview of the most recent message, newest first.
@@ -71,6 +88,13 @@ router.get('/with/:userId', requireAuth, (req, res) => {
   const otherUser = db.prepare('SELECT id, display_name FROM users WHERE id = ?').get(req.params.userId);
   if (!otherUser) return res.status(404).json({ error: 'User not found' });
   if (otherUser.id === req.user.id) return res.status(400).json({ error: "You can't message yourself" });
+
+  if (!isConnected(req.user.id, otherUser.id)) {
+    return res.status(403).json({
+      error: 'You need to connect with this person before messaging them',
+      code: 'NOT_CONNECTED'
+    });
+  }
 
   const convo = getOrCreateConversation(req.user.id, otherUser.id);
   const rows = db
@@ -128,3 +152,4 @@ router.post('/conversations/:conversationId/messages', requireAuth, (req, res) =
 });
 
 module.exports = router;
+

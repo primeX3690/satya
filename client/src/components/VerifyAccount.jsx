@@ -44,7 +44,7 @@ export default function VerifyAccount() {
     <div className="container" style={{ maxWidth: 420, marginTop: 48 }}>
       <h1>Verify your account</h1>
       <p style={{ color: 'var(--muted)' }}>
-        Enter the code we sent you. In local dev, it's printed in the server console.
+        Enter the verification code we sent you.
       </p>
 
       <form className="card" onSubmit={handleVerify}>

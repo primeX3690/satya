@@ -89,11 +89,21 @@ CREATE TABLE IF NOT EXISTS shares (
 CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('like', 'comment', 'appeal_resolved')),
+  type TEXT NOT NULL CHECK (type IN ('like', 'comment', 'appeal_resolved', 'connection_request', 'connection_accepted')),
   actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   post_id TEXT REFERENCES posts(id) ON DELETE CASCADE,
   is_read INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS connection_requests (
+  id TEXT PRIMARY KEY,
+  from_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  to_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  responded_at TEXT,
+  UNIQUE(from_user_id, to_user_id)
 );
 
 CREATE TABLE IF NOT EXISTS conversations (
@@ -152,6 +162,8 @@ CREATE INDEX IF NOT EXISTS idx_shares_post ON shares(post_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_users ON conversations(user_a_id, user_b_id);
+CREATE INDEX IF NOT EXISTS idx_connection_requests_to ON connection_requests(to_user_id, status);
+CREATE INDEX IF NOT EXISTS idx_connection_requests_from ON connection_requests(from_user_id, status);
 `);
 
 // --- Lightweight migrations -------------------------------------------------

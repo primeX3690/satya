@@ -14,8 +14,17 @@ const appealsRoutes = require('./routes/appeals');
 const adminRoutes = require('./routes/admin');
 const notificationsRoutes = require('./routes/notifications');
 const messagesRoutes = require('./routes/messages');
+const connectionsRoutes = require('./routes/connections');
 
 const app = express();
+
+// Most hosting platforms (Render, Railway, Fly.io, etc.) put the app behind
+// a reverse proxy. Without this, express-rate-limit and req.ip would see
+// the proxy's IP for every request instead of the real client's, breaking
+// rate limiting. Only trust the proxy in production - locally there isn't one.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 
 app.use(
   helmet({
@@ -49,6 +58,7 @@ app.use('/api/appeals', appealsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/messages', messagesRoutes);
+app.use('/api/connections', connectionsRoutes);
 
 // 404 handler
 app.use((req, res) => {
