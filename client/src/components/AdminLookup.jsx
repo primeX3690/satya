@@ -46,23 +46,31 @@ export default function AdminLookup() {
 
       <section className="card" style={{ marginBottom: 24 }}>
         <h2>Find a user</h2>
-        <form onSubmit={search} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <form onSubmit={search} style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           <input
-            style={{ flex: 1, padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 3 }}
+            style={{ flex: '1 1 200px', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 3 }}
             placeholder="Search by email, phone, or name"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button className="btn" type="submit">
-            <svg className="icon" width="14" height="14"><use href="/icons.svg#icon-search" /></svg>
-            Search
-          </button>
+          <button className="btn" type="submit">Search</button>
         </form>
 
         {error && <p className="error-text">{error}</p>}
 
         {users.map((u) => (
-          <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--line)' }}>
+          <div
+            key={u.id}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 10,
+              flexWrap: 'wrap',
+              padding: '10px 0',
+              borderTop: '1px solid var(--line)'
+            }}
+          >
             <div>
               <strong>{u.display_name}</strong>{' '}
               <span style={{ color: 'var(--muted)' }}>{u.email || u.phone}</span>
@@ -101,4 +109,3 @@ export default function AdminLookup() {
     </div>
   );
 }
-

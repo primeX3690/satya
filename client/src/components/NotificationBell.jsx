@@ -84,7 +84,7 @@ export default function NotificationBell() {
             position: 'absolute',
             right: 0,
             top: '110%',
-            width: 300,
+            width: 'min(300px, 88vw)',
             maxHeight: 360,
             overflowY: 'auto',
             zIndex: 20

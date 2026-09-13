@@ -60,7 +60,7 @@ export default function Login() {
 
         {error && <p className="error-text">{error}</p>}
 
-        <button className="btn" type="submit" disabled={submitting}>
+        <button className="btn" type="submit" disabled={submitting} style={{ width: '100%', justifyContent: 'center' }}>
           {submitting ? 'Logging in…' : 'Log in'}
         </button>
       </form>
@@ -71,4 +71,3 @@ export default function Login() {
     </div>
   );
 }
-
