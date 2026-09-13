@@ -4,11 +4,11 @@ import { api } from '../services/api';
 
 export default function Signup() {
   const [form, setForm] = useState({ displayName: '', email: '', phone: '', password: '' });
+  const [agreedToPolicy, setAgreedToPolicy] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const navigate = useNavigate();
-
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const handleSubmit = async (e) => {
@@ -17,6 +17,10 @@ export default function Signup() {
 
     if (!form.email && !form.phone) {
       setError('Provide an email or a phone number.');
+      return;
+    }
+    if (!agreedToPolicy) {
+      setError('You must agree to the content policy before signing up.');
       return;
     }
 
@@ -69,17 +73,47 @@ export default function Signup() {
           />
         </div>
 
+        <label
+          htmlFor="agreedToPolicy"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 8,
+            fontSize: '0.8rem',
+            color: 'var(--muted)',
+            marginBottom: 16,
+            cursor: 'pointer'
+          }}
+        >
+          <input
+            id="agreedToPolicy"
+            type="checkbox"
+            checked={agreedToPolicy}
+            onChange={(e) => setAgreedToPolicy(e.target.checked)}
+            style={{ marginTop: 2 }}
+            required
+          />
+          <span>
+            I confirm I will not upload illegal content, including child sexual abuse
+            material (CSAM), non-consensual intimate imagery, or other unlawful content.
+            Violations may be reported to law enforcement and result in account
+            termination and legal consequences.
+          </span>
+        </label>
+
         {error && <p className="error-text">{error}</p>}
 
-        <button className="btn" type="submit" disabled={submitting}>
+        <button className="btn" type="submit" disabled={submitting || !agreedToPolicy}>
           {submitting ? 'Creating account…' : 'Sign up'}
         </button>
       </form>
 
       <p style={{ marginTop: 16 }}>
-        Already have an account? <Link to="/login">Log in</Link>
+        Don't have an account? <Link to="/login">Log in</Link>
       </p>
     </div>
   );
 }
+
+
 
