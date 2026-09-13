@@ -8,8 +8,13 @@ logs/
 .DS_Store
 server/data/*.sqlite
 server/data/*.sqlite-journal
+# Old SQLite artifacts from before the Postgres migration - harmless to
+# leave this pattern in .gitignore even after the migration.
+server/data/*.sqlite-wal
+server/data/*.sqlite-shm
 server/uploads/*
 !server/uploads/.gitkeep
 coverage/
 .vscode/
 .idea/
+

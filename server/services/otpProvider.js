@@ -119,9 +119,10 @@ async function issueOtp(userId, destination, purpose = 'verify') {
   const codeHash = hashOtp(code);
   const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000).toISOString();
 
-  db.prepare(
-    `INSERT INTO otp_codes (id, user_id, code_hash, purpose, expires_at) VALUES (?, ?, ?, ?, ?)`
-  ).run(uuidv4(), userId, codeHash, purpose, expiresAt);
+  await db.run(
+    `INSERT INTO otp_codes (id, user_id, code_hash, purpose, expires_at) VALUES (?, ?, ?, ?, ?)`,
+    [uuidv4(), userId, codeHash, purpose, expiresAt]
+  );
 
   await deliverOtp(destination, code);
   return { expiresAt };
@@ -131,14 +132,13 @@ async function issueOtp(userId, destination, purpose = 'verify') {
  * Verifies a submitted OTP code for a user. Returns true/false.
  * Consumes the OTP row on success so it cannot be replayed.
  */
-function verifyOtp(userId, submittedCode, purpose = 'verify') {
-  const row = db
-    .prepare(
-      `SELECT * FROM otp_codes
-       WHERE user_id = ? AND purpose = ? AND consumed = 0
-       ORDER BY created_at DESC LIMIT 1`
-    )
-    .get(userId, purpose);
+async function verifyOtp(userId, submittedCode, purpose = 'verify') {
+  const row = await db.get(
+    `SELECT * FROM otp_codes
+     WHERE user_id = ? AND purpose = ? AND consumed = 0
+     ORDER BY created_at DESC LIMIT 1`,
+    [userId, purpose]
+  );
 
   if (!row) return false;
   if (new Date(row.expires_at).getTime() < Date.now()) return false;
@@ -147,7 +147,7 @@ function verifyOtp(userId, submittedCode, purpose = 'verify') {
   const matches = safeCompare(submittedHash, row.code_hash);
   if (!matches) return false;
 
-  db.prepare(`UPDATE otp_codes SET consumed = 1 WHERE id = ?`).run(row.id);
+  await db.run(`UPDATE otp_codes SET consumed = 1 WHERE id = ?`, [row.id]);
   return true;
 }
 

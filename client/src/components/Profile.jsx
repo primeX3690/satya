@@ -105,7 +105,7 @@ export default function Profile() {
         <h1 style={{ marginBottom: 4 }}>{user.displayName}</h1>
         <p style={{ color: 'var(--muted)', marginBottom: 0 }}>
           Trust score: {user.trustScore} · Member since{' '}
-          {new Date(`${user.memberSince}Z`).toLocaleDateString()}
+          {new Date(user.memberSince).toLocaleDateString()}
         </p>
         {!isSelf && <ConnectionButton userId={user.id} />}
       </div>

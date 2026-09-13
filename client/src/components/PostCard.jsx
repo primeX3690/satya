@@ -4,7 +4,8 @@ import { api, resolveMediaUrl } from '../services/api';
 import { useAuth } from '../App.jsx';
 
 function timeAgo(iso) {
-  const diffMs = Date.now() - new Date(`${iso}Z`).getTime();
+  // const diffMs = Date.now() - new Date(`${iso}Z`).getTime();
+  const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
   if (mins < 1) return 'just now';
   if (mins < 60) return `${mins}m ago`;

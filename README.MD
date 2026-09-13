@@ -9,7 +9,7 @@ are anchored to IPFS so posts cannot be silently altered after publication.
 
 ```
 satyanet-mvp/
-├── server/     Express + SQLite API (auth, posts, reports, appeals, admin)
+├── server/     Express + Postgres API (auth, posts, reports, appeals, admin)
 ├── client/     React (Vite) single-page app
 ├── ipfs-node/  Notes on running a local IPFS node for content anchoring
 └── docs/       Architecture, roadmap, funding pitch, deployment notes
@@ -36,6 +36,7 @@ npm run dev            # runs API (http://localhost:4000) + client (http://local
 
 ## Tech stack
 
-- Backend: Node.js, Express, better-sqlite3, jsonwebtoken, bcryptjs
+- Backend: Node.js, Express, PostgreSQL (via Supabase or any Postgres host), jsonwebtoken, bcryptjs
 - Frontend: React 18, Vite, plain CSS (no framework lock-in)
 - Storage/integrity: IPFS (via `ipfs-http-client`, mockable for local dev)
+

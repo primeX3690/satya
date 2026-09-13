@@ -7,7 +7,7 @@ SatyaNet is a monorepo with two deployable units and one supporting service:
 ```
 ┌──────────────┐      REST/JSON       ┌───────────────┐      HTTP API      ┌───────────┐
 │  React client │ ───────────────────▶│  Express API   │ ──────────────────▶│  IPFS node │
-│  (Vite, SPA)  │◀─────────────────── │  + SQLite      │◀────────────────── │ (optional) │
+│  (Vite, SPA)  │◀─────────────────── │  + Postgres    │◀────────────────── │ (optional) │
 └──────────────┘                      └───────────────┘                    └───────────┘
 ```
 
@@ -16,11 +16,14 @@ SatyaNet is a monorepo with two deployable units and one supporting service:
 - **routes/** — HTTP handlers only: parse input, call services/db, shape the response.
 - **services/** — business logic with no HTTP knowledge, so it's independently testable:
   - `cryptoUtils.js` — hashing (SHA-256), OTP generation, constant-time comparisons
-  - `otpProvider.js` — OTP issuance/verification, pluggable delivery (console or Twilio)
-  - `ipfsService.js` — content anchoring, pluggable backend (mock or real IPFS)
+  - `otpProvider.js` — OTP issuance/verification, pluggable delivery (console, Gmail/SMTP, or Twilio)
+  - `ipfsService.js` — content anchoring, pluggable backend (mock, Pinata, or a raw IPFS node)
   - `moderation.js` — rule-based content scoring, fully auditable
-- **middleware/** — cross-cutting concerns: `auth.js` (JWT + role guard), `rateLimit.js`
-- **database.js** — a single better-sqlite3 connection + schema migrations run at startup
+  - `mediaModeration.js` — image/video content-safety check (see docs/content-safety.md)
+- **middleware/** — cross-cutting concerns: `auth.js` (JWT + role guard), `rateLimit.js`, `asyncHandler.js`
+- **database.js** — a `pg` connection pool + schema creation, with a thin `.get()/.all()/.run()`
+  wrapper that converts `?`-style placeholders to Postgres's `$1, $2, ...` - this keeps every
+  route file's queries readable without hand-numbering placeholders
 
 ## Data model
 
@@ -30,16 +33,20 @@ SatyaNet is a monorepo with two deployable units and one supporting service:
 - `reports` — user-filed reports against a post, queued for moderator review
 - `appeals` — user-filed appeals against a moderation action, resolved by mod/admin
 - `audit_log` — append-only record of every moderation/admin action
+- `notifications`, `connection_requests`, `conversations`, `messages` — the social/messaging layer
 
-## Why SQLite (via better-sqlite3)
+## Why Postgres (via a hosted provider like Supabase)
 
-The MVP prioritizes zero external infrastructure: no database server to
-provision, a single file you can back up by copying it, and synchronous
-queries that keep route handlers simple. It comfortably handles moderate
-read/write volume for an early-stage product; migrating to Postgres later
-only requires swapping `database.js` and the SQL dialect in a few `.prepare()`
-calls, since the rest of the app talks to `database.js`'s exported handle, not
-to SQLite directly.
+Early on this ran on SQLite for zero-infrastructure simplicity. It moved to
+Postgres specifically to survive on free hosting tiers: many free
+application-hosting plans (Render's free web services, for example) wipe
+their local disk on every restart, which would silently delete a SQLite
+file. A separately-hosted Postgres database (Supabase's free tier, in
+particular) persists independently of the app server's own restarts/redeploys.
+Every query in the codebase goes through `database.js`'s `db.get/all/run()`
+wrapper rather than talking to Postgres directly, so if a future move to a
+different database engine is ever needed, it's contained to that one file
+plus the SQL text in each route (not a rearchitecture).
 
 ## Auth flow
 
@@ -71,7 +78,7 @@ to SQLite directly.
 
 ## Decentralization roadmap (honest assessment)
 
-The current architecture (one Express server + one SQLite file) is **not**
+The current architecture (one Express server + one Postgres database) is **not**
 censorship-resistant, regardless of what the application logic allows. It is
 a single point of control: whoever controls that server's hosting/ISP/DNS
 can take it offline, and whoever operates it can be legally compelled

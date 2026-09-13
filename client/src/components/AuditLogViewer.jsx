@@ -39,7 +39,7 @@ export default function AuditLogViewer() {
         <tbody>
           {entries.map((e) => (
             <tr key={e.id} style={{ borderBottom: '1px solid var(--line)' }}>
-              <td style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>{new Date(`${e.created_at}Z`).toLocaleString()}</td>
+              <td style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>{new Date(e.created_at).toLocaleString()}</td>
               <td style={{ padding: '8px 6px' }}>{e.action}</td>
               <td style={{ padding: '8px 6px' }}>{e.target_type} · {e.target_id.slice(0, 8)}</td>
               <td style={{ padding: '8px 6px', color: 'var(--muted)' }}>

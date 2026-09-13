@@ -50,9 +50,6 @@ assertProductionSecretsAreReal();
 /**
  * On first run, creates a bootstrap admin account so there's always a way
  * into the admin panel. Controlled via ADMIN_BOOTSTRAP_EMAIL/PASSWORD in .env.
- * The email is hashed (for lookup) and separately encrypted (for recovery),
- * exactly like every other user - the admin's address is never stored in
- * plaintext either.
  */
 async function bootstrapAdmin() {
   const email = process.env.ADMIN_BOOTSTRAP_EMAIL;
@@ -60,32 +57,42 @@ async function bootstrapAdmin() {
   if (!email || !password) return;
 
   const emailHash = hashEmail(email, process.env.EMAIL_HASH_SECRET);
-  const existing = db.prepare('SELECT id FROM users WHERE email_hash = ?').get(emailHash);
+  const existing = await db.get('SELECT id FROM users WHERE email_hash = ?', [emailHash]);
   if (existing) return;
 
   const passwordHash = await bcrypt.hash(password, Number(process.env.BCRYPT_SALT_ROUNDS || 10));
   const emailEncrypted = encryptEmail(email, process.env.EMAIL_ENCRYPTION_SECRET);
 
-  db.prepare(
+  await db.run(
     `INSERT INTO users (id, email_hash, email_encrypted, password_hash, display_name, role, is_verified)
-     VALUES (?, ?, ?, ?, 'Admin', 'admin', 1)`
-  ).run(uuidv4(), emailHash, emailEncrypted, passwordHash);
+     VALUES (?, ?, ?, ?, 'Admin', 'admin', 1)`,
+    [uuidv4(), emailHash, emailEncrypted, passwordHash]
+  );
 
   // eslint-disable-next-line no-console
   console.log(`[bootstrap] Admin account created: ${email}`);
 }
 
-bootstrapAdmin()
-  .catch((err) => console.error('Admin bootstrap failed:', err))
-  .finally(() => {
-    // Socket.IO needs the raw HTTP server (not just the Express app) so it
-    // can upgrade connections to WebSockets on the same port.
-    const server = http.createServer(app);
-    initSocket(server);
+async function start() {
+  // Postgres needs the schema created before anything else touches the DB -
+  // unlike the old SQLite setup, this is now an async network call.
+  await db.initSchema();
+  await bootstrapAdmin();
 
-    server.listen(PORT, () => {
-      // eslint-disable-next-line no-console
-      console.log(`SatyaNet server listening on http://localhost:${PORT}`);
-    });
+  // Socket.IO needs the raw HTTP server (not just the Express app) so it
+  // can upgrade connections to WebSockets on the same port.
+  const server = http.createServer(app);
+  initSocket(server);
+
+  server.listen(PORT, () => {
+    // eslint-disable-next-line no-console
+    console.log(`SatyaNet server listening on http://localhost:${PORT}`);
   });
+}
+
+start().catch((err) => {
+  // eslint-disable-next-line no-console
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});
 

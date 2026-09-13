@@ -93,5 +93,17 @@ async function fetchContent(cid) {
   return null;
 }
 
-module.exports = { pinContent, fetchContent };
+/**
+ * Returns a public URL that resolves this CID, when the current mode has
+ * one (Pinata's gateway). Returns null in mock mode, where there's no real
+ * content behind the CID to link to.
+ */
+function getGatewayUrl(cid) {
+  if (IPFS_MODE === 'pinata' && cid) {
+    return `${PINATA_GATEWAY}/${cid}`;
+  }
+  return null;
+}
+
+module.exports = { pinContent, fetchContent, getGatewayUrl };
 

@@ -42,9 +42,11 @@ async function request(path, { method = 'GET', body, auth = false, isForm = fals
     data = null;
   }
 
-  if (!res.ok) {
+    if (!res.ok) {
     const message = (data && data.error) || `Request failed (${res.status})`;
-    throw new Error(message);
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
   }
   return data;
 }

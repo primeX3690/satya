@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.3.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
@@ -24,6 +23,7 @@
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.15",
+    "pg": "^8.23.0",
     "socket.io": "^4.8.0",
     "uuid": "^10.0.0"
   },
@@ -31,4 +31,3 @@
     "supertest": "^7.0.0"
   }
 }
-

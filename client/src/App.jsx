@@ -43,18 +43,21 @@ function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
-    try {
+      try {
       const { user: me } = await api.me();
       setUser(me);
       connectSocket();
-    } catch {
-      setToken(null);
-      setUser(null);
+    } catch (err) {
+      if (err.status === 401) {
+        setToken(null);
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
+  
   useEffect(() => {
     loadMe();
     return () => disconnectSocket();

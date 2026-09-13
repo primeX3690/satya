@@ -8,16 +8,18 @@ const { emitToUser } = require('./socket');
  * event as a "go refetch your notifications" signal rather than trusting
  * its payload directly, so this stays simple by design.
  */
-function createNotification({ userId, type, actorId = null, postId = null }) {
+async function createNotification({ userId, type, actorId = null, postId = null }) {
   if (!userId || (actorId && actorId === userId)) return null; // never notify yourself
 
   const id = uuidv4();
-  db.prepare(
-    `INSERT INTO notifications (id, user_id, type, actor_id, post_id) VALUES (?, ?, ?, ?, ?)`
-  ).run(id, userId, type, actorId, postId);
+  await db.run(
+    `INSERT INTO notifications (id, user_id, type, actor_id, post_id) VALUES (?, ?, ?, ?, ?)`,
+    [id, userId, type, actorId, postId]
+  );
 
   emitToUser(userId, 'notification:new', { id, type });
   return id;
 }
 
 module.exports = { createNotification };
+

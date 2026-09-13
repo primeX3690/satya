@@ -1,13 +1,16 @@
 // Basic integration tests for the SatyaNet API.
 // Run with: npm test  (from the server/ directory)
 //
-// Uses a throwaway in-memory-style SQLite file so tests never touch dev data.
+// Requires a real (ideally throwaway/test) Postgres database - set
+// DATABASE_URL before running, e.g. a separate Supabase project or a local
+// Postgres instance. These tests write real rows to that database; don't
+// point this at your production DATABASE_URL.
 
-process.env.DATABASE_PATH = ':memory:';
 process.env.JWT_SECRET = 'test-secret';
 process.env.EMAIL_OTP_DELIVERY = 'console';
 process.env.SMS_OTP_DELIVERY = 'console';
 process.env.IPFS_MODE = 'mock';
+process.env.MEDIA_MODERATION_MODE = 'mock';
 process.env.BCRYPT_SALT_ROUNDS = '4'; // faster hashing in tests
 process.env.EMAIL_HASH_SECRET = 'test-email-hash-secret';
 process.env.EMAIL_ENCRYPTION_SECRET = 'a'.repeat(64); // valid 32-byte hex key for tests
@@ -16,18 +19,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 
-const app = require('../app');
 const db = require('../database');
-const { verifyOtp } = require('../services/otpProvider');
 
-// Patch verifyOtp is not needed - we read the OTP directly from the otp_codes
-// table via a helper, since console mode only logs it.
-function getLatestRawOtpForUser() {
-  // We cannot recover the raw code from the hash, so for tests we issue our
-  // own OTP flow through a spy-free approach: call the auth endpoints and
-  // intercept console output.
-  return null;
-}
+test.before(async () => {
+  await db.initSchema();
+});
+
+const app = require('../app');
 
 test('health check responds ok', async () => {
   const res = await request(app).get('/api/health');
@@ -97,14 +95,14 @@ test('flagged content is not published to the public timeline', async () => {
   });
   const { userId } = signupRes.body;
 
-  const row = db
-    .prepare(`SELECT * FROM otp_codes WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`)
-    .get(userId);
+  const row = await db.get(`SELECT * FROM otp_codes WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`, [
+    userId
+  ]);
   assert.ok(row);
 
   // We can't invert the hash, so directly mark verified for this isolated test
   // of the moderation pipeline (auth flow itself is covered above).
-  db.prepare('UPDATE users SET is_verified = 1 WHERE id = ?').run(userId);
+  await db.run('UPDATE users SET is_verified = 1 WHERE id = ?', [userId]);
 
   const loginRes = await request(app)
     .post('/api/auth/login')
@@ -190,4 +188,3 @@ test('like, comment, and share flow on a published post', async () => {
   assert.equal(finalPost.body.post.commentCount, 1);
   assert.equal(finalPost.body.post.shareCount, 1);
 });
-

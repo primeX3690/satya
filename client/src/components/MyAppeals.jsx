@@ -42,7 +42,7 @@ export default function MyAppeals() {
               Resolution note: {a.resolutionNote}
             </p>
           )}
-          <p style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>Filed {new Date(`${a.createdAt}Z`).toLocaleString()}</p>
+          <p style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>Filed {new Date(a.createdAt).toLocaleString()}</p>
         </div>
       ))}
     </div>

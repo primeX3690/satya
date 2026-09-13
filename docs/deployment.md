@@ -1,7 +1,7 @@
 # Deployment & Setup Guide
 
-This covers everything from a fresh clone to a running dev environment,
-to production with PM2, to pushing this project to GitHub.
+This covers everything from a fresh clone to a running dev environment, to
+free production deployment, to pushing this project to GitHub.
 
 ---
 
@@ -9,7 +9,8 @@ to production with PM2, to pushing this project to GitHub.
 
 - Node.js 18+ and npm 9+ (`node -v`, `npm -v`)
 - Git
-- (Optional, for real content-anchoring) a running IPFS node — see `ipfs-node/README.md`
+- A free Supabase account (for the Postgres database) — see Section 2a
+- (Optional, for real content-anchoring) a Pinata account — see `ipfs-node/README.md`
 
 ---
 
@@ -18,7 +19,6 @@ to production with PM2, to pushing this project to GitHub.
 From the repo root (`satyanet-mvp/`):
 
 ```bash
-# Install dependencies for both server and client in one go
 npm run install:all
 ```
 
@@ -29,17 +29,25 @@ cp server/.env.example server/.env
 cp client/.env.example client/.env
 ```
 
-Open `server/.env` and set at least:
+### 2a. Set up your Postgres database (Supabase, free)
 
-```
-JWT_SECRET=<generate a long random string, e.g. `openssl rand -hex 32`>
-EMAIL_HASH_SECRET=<generate with `openssl rand -hex 32`>
-EMAIL_ENCRYPTION_SECRET=<must be exactly 64 hex chars - generate with `openssl rand -hex 32`>
-ADMIN_BOOTSTRAP_EMAIL=<your email>
-ADMIN_BOOTSTRAP_PASSWORD=<a strong password>
-```
+1. Go to https://supabase.com/ and create a free account + a new project
+   (pick any name/region; the free plan needs no card).
+2. Once the project is ready: **Project Settings → Database → Connection
+   string → URI**. Copy it — it looks like:
+   ```
+   postgresql://postgres:[YOUR-PASSWORD]@db.xxxxxxxx.supabase.co:5432/postgres
+   ```
+3. Paste it into `server/.env` as `DATABASE_URL` (replace `[YOUR-PASSWORD]`
+   with the database password you set when creating the project).
+4. That's it — the app creates all its tables automatically on first start
+   (`db.initSchema()` runs at startup).
 
-Generate all three secrets at once:
+Your data now lives on Supabase's servers, not on whatever machine runs the
+Express app — so it survives restarts/redeploys of the app itself, which
+matters a lot on free hosting tiers (see Section 6).
+
+### 2b. Generate secrets
 
 ```bash
 echo "JWT_SECRET=$(openssl rand -hex 32)"
@@ -55,48 +63,50 @@ node -e "console.log('EMAIL_HASH_SECRET=' + require('crypto').randomBytes(32).to
 node -e "console.log('EMAIL_ENCRYPTION_SECRET=' + require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-**Why two different email secrets?** `EMAIL_HASH_SECRET` produces a one-way
-fingerprint used only to look up a user by email (login, duplicate-signup
-checks) — it can never be reversed back into an email. `EMAIL_ENCRYPTION_SECRET`
-produces a reversible ciphertext used only when the real address is genuinely
-needed, e.g. to deliver an OTP. Keeping them separate means a leak of one
-secret doesn't compromise the other property. **Never reuse the same value
-for both, and never commit either to git.**
+Set `ADMIN_BOOTSTRAP_EMAIL` / `ADMIN_BOOTSTRAP_PASSWORD` too - this creates
+your one admin account on first server start.
 
-Everything else has sensible defaults for local development (SQLite file
-database, console-logged OTPs, mock IPFS).
+**Why two different email secrets?** `EMAIL_HASH_SECRET` produces a one-way
+fingerprint used only to look up a user by email — it can never be reversed
+back into an email. `EMAIL_ENCRYPTION_SECRET` produces a reversible
+ciphertext used only when the real address is genuinely needed (e.g. to
+deliver an OTP). Keeping them separate means a leak of one secret doesn't
+compromise the other property. **Never reuse the same value for both, and
+never commit either to git.**
 
 ---
 
 ## 3. Running in development
 
-From the repo root, run both server and client together:
+From the repo root:
 
 ```bash
 npm run dev
 ```
 
 This starts:
-- API at **http://localhost:4000** (health check: `curl http://localhost:4000/api/health`)
+- API at **http://localhost:4000**
 - Client at **http://localhost:5173**
 
 On first server start, a bootstrap admin account is created automatically
-using `ADMIN_BOOTSTRAP_EMAIL` / `ADMIN_BOOTSTRAP_PASSWORD` from `server/.env`
-— log in with those credentials to reach `/admin` and `/moderation`.
+using `ADMIN_BOOTSTRAP_EMAIL` / `ADMIN_BOOTSTRAP_PASSWORD`.
 
-To run them separately instead:
+OTP codes are printed to the server terminal by default
+(`EMAIL_OTP_DELIVERY=console`). To send real emails via Gmail (free):
 
-```bash
-npm run dev:server     # just the API
-npm run dev:client     # just the client
-```
+1. Turn on 2-Step Verification: https://myaccount.google.com/security
+2. Create an App Password: https://myaccount.google.com/apppasswords
+3. In `server/.env`:
+   ```
+   EMAIL_OTP_DELIVERY=gmail
+   GMAIL_USER=youraddress@gmail.com
+   GMAIL_APP_PASSWORD=the16charapppassword
+   EMAIL_FROM="SatyaNet <youraddress@gmail.com>"
+   ```
+4. Restart the server.
 
-OTP codes are printed straight to the server's terminal output in the
-default `OTP_MODE=console`, e.g.:
-
-```
-[OTP] Code for you@example.com: 483920 (expires in 10m)
-```
+If Gmail sending fails for any reason, the server automatically falls back
+to logging the code to its own console (tagged `[OTP fallback]`).
 
 ---
 
@@ -106,48 +116,99 @@ default `OTP_MODE=console`, e.g.:
 npm run test:server
 ```
 
-This runs the API integration tests in `server/tests/api.test.js` against an
-in-memory SQLite database — it never touches your real `server/data/*.sqlite` file.
+**These tests need a real Postgres database** (set `DATABASE_URL` — a
+separate Supabase project dedicated to testing is a good idea, so tests
+never touch your real data).
 
 ---
 
-## 5. Building for production
+## 5. Building the client for production
 
 ```bash
 npm run build:client
 ```
 
-This produces a static bundle in `client/dist/`. Serve it with any static
-file host (Nginx, Vercel, Netlify, Cloudflare Pages, or a simple `serve -s dist`).
-Point it at your deployed API by setting `VITE_API_BASE_URL` in `client/.env`
-**before** building (Vite bakes env vars in at build time).
+Produces a static bundle in `client/dist/`. Set `VITE_API_BASE_URL` in
+`client/.env` to your deployed API's URL **before** building (Vite bakes env
+vars in at build time).
 
 ---
 
-## 6. Running the API in production with PM2
+## 6. Deploying for free — Render (API) + Vercel (client)
+
+### ⚠️ Read this first: the free-tier disk trade-off
+
+Render's free web services have an **ephemeral filesystem** — anything
+written to local disk (like uploaded media saved to `server/uploads/`,
+before Pinata pins it) can be wiped whenever the service restarts, which
+happens automatically after ~15 minutes of no traffic. This is why this
+project's database now lives on Supabase (Section 2a) instead of a local
+SQLite file, and why setting up Pinata (`ipfs-node/README.md`) for media is
+strongly recommended before real users start uploading photos/videos - it
+gives uploaded media a permanent home independent of Render's disk.
+
+The free tier is genuinely fine for launching and getting initial users;
+just know that:
+- The app "sleeps" after ~15 min idle, and the next visitor waits ~30-60s
+  for it to wake up.
+- If you skip Pinata, any locally-stored media can be lost on a restart.
+- Once there's real traffic (or a few dollars to spare), Render's paid
+  Starter plan adds a persistent disk and removes the sleep delay.
+
+### Deploy the API to Render
+
+1. Push this repo to GitHub (see Section 8).
+2. Go to https://render.com/, sign up free (no card required), **New → Web Service**.
+3. Connect your GitHub repo.
+4. Configure:
+   - **Root Directory**: `server`
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+   - **Instance Type**: Free
+5. Add every variable from your `server/.env` under **Environment** in the
+   Render dashboard — including `DATABASE_URL`, all the secrets, and set
+   `NODE_ENV=production`.
+6. Set `CLIENT_ORIGIN` to your Vercel URL once you have it (Section below) -
+   you can come back and update this after deploying the client.
+7. Deploy. Render gives you a URL like `https://satyanet-server.onrender.com`.
+
+### Deploy the client to Vercel
+
+1. Go to https://vercel.com/, sign up free, **Add New → Project**, import
+   the same GitHub repo.
+2. Configure:
+   - **Root Directory**: `client`
+   - **Framework Preset**: Vite (auto-detected)
+   - **Build Command**: `npm run build` (default)
+   - **Output Directory**: `dist` (default)
+3. Add environment variable: `VITE_API_BASE_URL` = `https://satyanet-server.onrender.com/api`
+   (your actual Render URL + `/api`).
+4. Deploy. Vercel gives you a URL like `https://satyanet.vercel.app`.
+5. Go back to Render and update `CLIENT_ORIGIN` to this Vercel URL, then
+   redeploy the API (or it'll block the client with a CORS error).
+
+That's it - both are genuinely $0/month.
+
+---
+
+## 7. Running the API yourself with PM2 (alternative to Render)
+
+If you have your own server/VPS instead:
 
 ```bash
-npm install -g pm2          # one-time, if not already installed
+npm install -g pm2
 npm run install:all
 cp server/.env.example server/.env   # then edit with production values
 
-npm run pm2:start           # starts the API via ecosystem.config.js
-pm2 status                  # check it's running
-pm2 logs satyanet-server    # tail logs
-npm run pm2:stop            # stop it
-pm2 startup                 # (optional) make PM2 survive server reboots
+npm run pm2:start
+pm2 status
+pm2 logs satyanet-server
+npm run pm2:stop
+pm2 startup
 pm2 save
 ```
 
-`ecosystem.config.js` runs `server/index.js`, restarts on crash, and caps
-memory at 300MB (`max_memory_restart`) as a safety net.
-
----
-
-## 7. Reverse proxy (example: Nginx)
-
-If you're serving the client as static files and proxying the API on the
-same domain:
+### Reverse proxy (example: Nginx)
 
 ```nginx
 server {
@@ -173,47 +234,19 @@ Add HTTPS with `certbot --nginx` (Let's Encrypt) once DNS is pointed at the serv
 
 ## 8. Pushing this project to GitHub
 
-From the repo root (`satyanet-mvp/`):
-
 ```bash
 git init
 git add .
 git commit -m "Initial commit: SatyaNet MVP"
-```
-
-Create an empty repository on GitHub (via the web UI, or the `gh` CLI below),
-**without** initializing it with a README/license (to avoid a merge conflict
-with your first commit):
-
-```bash
-# Using GitHub CLI (recommended if installed: gh auth login first)
 gh repo create satyanet-mvp --private --source=. --remote=origin
-
-# OR, if you created the repo manually on github.com, connect it manually:
-git remote add origin https://github.com/<your-username>/satyanet-mvp.git
-```
-
-Then push:
-
-```bash
 git branch -M main
 git push -u origin main
 ```
 
-For subsequent changes:
+For subsequent changes: `git add . && git commit -m "..." && git push`.
 
-```bash
-git add .
-git commit -m "Describe what changed"
-git push
-```
-
-### Double-check before your first push
-
-- `server/.env` and `client/.env` are in `.gitignore` — confirm they're **not**
-  staged (`git status` should not list them). Never commit real secrets.
-- `server/data/*.sqlite` is also ignored, so your local dev database won't be
-  pushed.
+**Before your first push:** run `git status` and confirm `server/.env` and
+`client/.env` are NOT listed (they're gitignored — never commit real secrets).
 
 ---
 
@@ -230,12 +263,18 @@ git push
 | `BCRYPT_SALT_ROUNDS` | Password hashing cost | `10` |
 | `EMAIL_HASH_SECRET` | Keys the one-way email lookup hash — **change in production** | — |
 | `EMAIL_ENCRYPTION_SECRET` | Keys reversible email encryption (64 hex chars) — **change in production** | — |
-| `DATABASE_PATH` | SQLite file location | `./data/satyanet.sqlite` |
-| `OTP_MODE` | `console` or `twilio` | `console` |
+| `DATABASE_URL` | Postgres connection string (Supabase, etc.) | — |
 | `OTP_TTL_MINUTES` | OTP validity window | `10` |
-| `TWILIO_*` | Required only if `OTP_MODE=twilio` | — |
-| `IPFS_MODE` | `mock` or `http` | `mock` |
-| `IPFS_API_URL` | Real IPFS node/gateway URL | `http://127.0.0.1:5001` |
+| `EMAIL_OTP_DELIVERY` | `console`, `gmail`, or `smtp` | `console` |
+| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | Required if `EMAIL_OTP_DELIVERY=gmail` | — |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | Required if `EMAIL_OTP_DELIVERY=smtp` | — |
+| `EMAIL_FROM` | "From" address on OTP emails | — |
+| `SMS_OTP_DELIVERY` | `console` or `twilio` | `console` |
+| `TWILIO_*` | Required only if `SMS_OTP_DELIVERY=twilio` | — |
+| `IPFS_MODE` | `mock`, `pinata`, or `http` | `mock` |
+| `PINATA_JWT` | Required if `IPFS_MODE=pinata` | — |
+| `MEDIA_MODERATION_MODE` | `mock` or `sightengine` | `mock` |
+| `SIGHTENGINE_API_USER` / `SIGHTENGINE_API_SECRET` | Required if `MEDIA_MODERATION_MODE=sightengine` | — |
 | `ADMIN_BOOTSTRAP_EMAIL` / `_PASSWORD` | Creates one admin account on first run | — |
 
 ### `client/.env`
@@ -248,20 +287,19 @@ git push
 
 ## 10. Troubleshooting
 
-- **`better-sqlite3` fails to install / native build error** — you need a
-  C++ build toolchain. On Ubuntu/Debian: `sudo apt-get install build-essential python3`.
-  On macOS: `xcode-select --install`.
 - **CORS errors in the browser** — check `CLIENT_ORIGIN` in `server/.env`
-  matches the exact origin the client is served from (protocol + host + port).
+  matches the exact origin the client is served from (protocol + host + port,
+  no trailing slash).
 - **"Account not verified" on login** — the signup OTP wasn't verified yet;
-  check the server console for the code, or use `/api/auth/resend-otp`.
-- **Uploaded media not loading in the browser (blocked/blank image or video)** —
-  confirm the server is running with the updated `app.js` that serves `/uploads`
-  and sets a relaxed `Cross-Origin-Resource-Policy` for it; also check
-  `VITE_API_BASE_URL` in `client/.env` is correct so `resolveMediaUrl()` can
-  build the right absolute URL.
+  check the server console for the code (or your email if Gmail delivery is
+  configured), or use `/api/auth/resend-otp`.
+- **Uploaded media not loading in the browser** — confirm `VITE_API_BASE_URL`
+  is correct; if `IPFS_MODE=mock`, media is served from the local `/uploads`
+  path, which won't survive a Render restart (see Section 6).
 - **"Unsupported media type" on upload** — only JPEG/PNG/GIF/WEBP images and
-  MP4/WEBM/MOV videos are accepted in the MVP; see `server/routes/posts.js`
-  `ALLOWED_MIME` to extend this.
+  MP4/WEBM/MOV videos are accepted; see `server/routes/posts.js` `ALLOWED_MIME`.
+- **Database connection errors on startup** — double-check `DATABASE_URL` is
+  the full connection string from Supabase (including the password), and that
+  you copied the "URI" format, not "psql" or another format.
 - **Port already in use** — change `PORT` in `server/.env` or `server.port`
   in `client/vite.config.js`.
