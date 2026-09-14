@@ -200,6 +200,46 @@ async function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_connection_requests_to ON connection_requests(to_user_id, status);
     CREATE INDEX IF NOT EXISTS idx_connection_requests_from ON connection_requests(from_user_id, status);
   `);
+
+  await runColumnMigrations();
+}
+
+/**
+ * CREATE TABLE IF NOT EXISTS only helps for tables that don't exist yet -
+ * it does nothing if the table already exists but is missing a column a
+ * newer version of the code expects. This adds any such missing columns
+ * automatically on every startup, so a deployed database never needs a
+ * manual ALTER TABLE when a new feature adds a column to an existing table.
+ *
+ * To add a new column for a future feature: add one line here (and to the
+ * matching CREATE TABLE above, for brand-new databases) - nothing else.
+ */
+async function runColumnMigrations() {
+  const columns = [
+    // [table, column, "ADD COLUMN" type/definition]
+    ['posts', 'media_type', "TEXT"],
+    ['posts', 'media_url', 'TEXT'],
+    ['posts', 'media_cid', 'TEXT'],
+    ['posts', 'media_hash', 'TEXT'],
+    ['posts', 'media_mime', 'TEXT'],
+    ['posts', 'like_count', 'INTEGER NOT NULL DEFAULT 0'],
+    ['posts', 'comment_count', 'INTEGER NOT NULL DEFAULT 0'],
+    ['posts', 'share_count', 'INTEGER NOT NULL DEFAULT 0'],
+    ['users', 'email_hash', 'TEXT'],
+    ['users', 'email_encrypted', 'TEXT']
+  ];
+
+  for (const [table, column, definition] of columns) {
+    const exists = await pool.query(
+      `SELECT 1 FROM information_schema.columns WHERE table_name = $1 AND column_name = $2`,
+      [table, column]
+    );
+    if (exists.rows.length === 0) {
+      // eslint-disable-next-line no-console
+      console.log(`[database] Adding missing column ${table}.${column}`);
+      await pool.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
+  }
 }
 
 module.exports = { ...db, initSchema, pool };
